@@ -1,4 +1,3 @@
-# coding: utf-8
 #!/usr/bin/python
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,11 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# DHT Sensor Data-logging Example
+# Thingspeak DHT Sensor  Data-logging Example
+# Copyright (c) 2014 Adafruit Industries
+# Author: mi123
 
 # Hardwares: Zigbee, Arduino, raspberry pi, etc.
-# Thingspeak API
-# Python-xbee API
 # Zigbees modes are Coordinator API and Enddevice AT modes
 
 import sys
@@ -36,11 +35,13 @@ from xbee import XBee, ZigBee
 import gspread
 import httplib, urllib
 
-TNGSPK_KEY = 'TNGSPK_KEY' # Watanabe
+#TNGSPK_KEY = 'CUAY1J3VKRF6CXER'
+TNGSPK_KEY = 'WO6ZYP6A43GC8SLD' # W
 
 # USB port
-#port='/dev/ttyUSB0' # if Rasberry pi
-port='COM5' # if windows
+#port='/dev/ttyUSB0'
+#port='COM5'
+port='/dev/ttyACM0'
 
 # Communicate using Serial
 
@@ -59,7 +60,36 @@ def serial_init(port):
         print "Connection didn't establish"
         return False
     
-        
+
+def arduinoPower(sw):
+    ''' This function is switching of arduino power
+        attribute sw must be 'on' or 'off'
+    '''
+    dic_sw = {'off':'\x04', 'on':'\x05'}
+    xbee.remote_at(frame_id = 'B',\
+        dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
+        dest_addr='\xFF\xFF', command='D4', parameter=dic_sw[sw])
+
+    response = xbee.wait_read_frame()
+    print response
+    return
+
+
+def arduinoSerial(sw):
+    ''' This function is switching of arduino power
+        attribute sw must be 'on' or 'off'
+    '''
+    dic_sw = {'off':'\x04', 'on':'\x05'}
+    xbee.remote_at(frame_id = 'C',\
+        dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
+        dest_addr='\xFF\xFF', command='D3', parameter=dic_sw[sw])
+
+    response = xbee.wait_read_frame()
+    print response
+
+    return
+
+
 def serial_read(num_data, num_loop = 10):
     ''' serail read and cut out the data
         return data in a line
@@ -69,12 +99,15 @@ def serial_read(num_data, num_loop = 10):
         num_loop : max number of attempting loop (default 10)
         return data if fail return False
     ''' 
+    num_loop = num_loop + 1
     while num_loop:
         # read data
+        num_loop -= 1
         print num_loop
+        response = xbee.wait_read_frame()
+        print response
+        print "\n"
         try:
-            response = xbee.wait_read_frame()
-            #print response
             if response['id'] == 'rx':
                 serial_data = response['rf_data'].strip('\n\r').split(':')
                 if serial_data[0] == 'start' and serial_data[-1] == 'end':
@@ -88,60 +121,49 @@ def serial_read(num_data, num_loop = 10):
         except:
             time.sleep(0.1)
             continue
-        num_loop -= 1
     return False
 
 
-def arduinoPower(sw):
-    ''' This function is switching of arduino power
-        attribute sw must be 'on' or 'off'
-    '''
-    dic_sw = {'off':'\x04', 'on':'\x05'}
-    xbee.remote_at(frame_id='A',\
-            dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
-            dest_addr='\xFF\xFF', command='D4', parameter=dic_sw[sw])
-    try:
-        response = xbee.wait_read_frame()
-        print response
-    except:
-        pass
-
-    return
-
-
-def arduinoSerial(sw):
-    ''' This function is switching of arduino power
-        attribute sw must be 'on' or 'off'
-    '''
-    dic_sw = {'off':'\x04', 'on':'\x05'}
-    xbee.remote_at(frame_id='B',\
-            dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
-            dest_addr='\xFF\xFF', command='D3', parameter=dic_sw[sw])
-    try:
-        response = xbee.wait_read_frame()
-        print response
-    except:
-        print 'Fail to operate arduino Serial'
-
-    return
-
-
 def xbeeIsCmd():
+    """
+    check pins status
+    
+    """
     print "IS command"
-    xbee.remote_at(frame_id='C',\
+    xbee.remote_at(frame_id='D',\
             dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
             dest_addr='\xFF\xFF',\
             command='IS')    
-    try:
+    num_loop = 11
+    while num_loop:
+        # read data
+        num_loop -= 1
+        print num_loop
         response = xbee.wait_read_frame()
-        print response['parameter'][0]['adc-1']
-    except:
-        print 'Fail to measure the battery voltage'
+        print response
+        print '\n'
+        if response['frame_id'] == 'D':
+            print response['parameter'][0]['adc-1']
+            return float(response['parameter'][0]['adc-1'])
+        else:
+           continue
+    
+    return False
 
+
+def xbeeSiCmd():
+    print "Sleep Immediately"
+    xbee.remote_at(frame_id = 'E',\
+            dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',\
+            dest_addr='\xFF\xFF',\
+            command='SI')    
+    response = xbee.wait_read_frame()
+    print response
+    print '\n'
     return
 
 
-def update_thingspeak(tngspk_data1, tngspk_data2, tngspk_key):
+def update_thingspeak(tngspk_data1, tngspk_data2, tngspk_data3, tngspk_key):
     ''' This function pushing data to the thingspeak 
         parameters
         temp : measured temperature will be plotted on fig field1.
@@ -150,6 +172,7 @@ def update_thingspeak(tngspk_data1, tngspk_data2, tngspk_key):
     try:
         params = urllib.urlencode({'field1': tngspk_data1,\
                 'field2': tngspk_data2,\
+                'field3': tngspk_data3,\
                 'key': tngspk_key})
         headers = {"Content-type":"application/x-www-form-urlencoded",
         "Accept":"text/plain"}
@@ -163,41 +186,48 @@ def update_thingspeak(tngspk_data1, tngspk_data2, tngspk_key):
         print 'Append error, sorry'
 
 # # the following part is the main program.
-
-# In[6]:
 if __name__ == "__main__":
     # Opening the serial port
     global ser
     global xbee
     ser, xbee = serial_init(port)
 
-    print "# make arduino awake\n"
+    print "# Arduino awake\n"
     arduinoPower('on')
-    print "# make arduino serial on\n"
-    arduinoSerial('on')
+    print "\n"
 
-#    print "# Read data from arduino.\n"
+    print "# Arduino serial on\n"
+    arduinoSerial('on')
+    print "\n"
+
+    print "# Read data from arduino.\n"
     num_data = 2
     data = serial_read(num_data, num_loop = 10)
     if data != False:
         tempDHT22 = float(data[0])
         rhDHT22 = float(data[1])
     
-#    print "# get the time."
-#    TS = datetime.datetime.now()
-#    TS = TS.replace(microsecond=0)
-
-    print "# make arduino serial off\n"
+    print "# Arduino serial off\n"
     arduinoSerial('off')
+    print "\n"
 
     print "# measure the battery voltage\n"
-    xbeeIsCmd()
+    volt_battery = xbeeIsCmd()
+    # calc supply voltage (1:11), 10bit, 1.2V@1023digit
+    volt_battery = volt_battery/1023.0 * 1.2 * 11.0
+    print '%f\n' %volt_battery
 
-    print "# make arduino sleep\n"
+    print "# Arduino sleep\n"
     arduinoPower('off')
+    print "\n"
+
+    print "Xbee gonna Sleep\n"
+    xbeeSiCmd()
+    print "\n"
 
     # upload data to thingspeak
-    update_thingspeak(tempDHT22, rhDHT22, TNGSPK_KEY) # TMP36 sensor data
+    update_thingspeak(tempDHT22, rhDHT22, volt_battery, TNGSPK_KEY) # TMP36 sensor data
 
     # close serial
     ser.close()
+
