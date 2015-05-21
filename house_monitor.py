@@ -35,8 +35,8 @@ from xbee import XBee, ZigBee
 import gspread
 import httplib, urllib
 
-#TNGSPK_KEY = 'CUAY1J3VKRF6CXER'
-TNGSPK_KEY = 'WO6ZYP6A43GC8SLD' # W
+#TNGSPK_KEY = 'xxxxxx'# you need Thingspeak registration to get key
+TNGSPK_KEY = 'xxxxxx' # W
 
 # USB port
 #port='/dev/ttyUSB0'
