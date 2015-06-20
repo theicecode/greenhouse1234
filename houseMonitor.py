@@ -1,15 +1,5 @@
 #!/usr/bin/python
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,11 +9,15 @@
 # SOFTWARE.
 
 # Thingspeak DHT Sensor  Data-logging Example
-# Copyright (c) 2014 Adafruit Industries
 # Author: mi123
 
 # Hardwares: Zigbee, Arduino, raspberry pi, etc.
 # Zigbees modes are Coordinator API and Enddevice AT modes
+# ZigBee pins
+# D3(pin11) as serial trigger  ---- Arduino DIO detect
+# D4(pin17) as power switch --- Switch
+# If necessary
+# AD1(pin19) to monitor voltage
 
 import sys
 import time
